@@ -4,8 +4,6 @@ Description: Utilities for STAC validate
 """
 __author__ = "James Banting"
 
-import os
-
 import requests
 
 old_versions = ["v0.4.0", "v0.4.1", "v0.5.0", "v0.5.1", "v0.5.2"]
@@ -23,6 +21,9 @@ class StacVersion:
         self.version = version
         self._determine_verison()
 
+    def _build_paths(self, components=[]):
+        return "/".join(components)
+
     def _determine_verison(self):
         """
         Determine the path structure based on versions.
@@ -32,25 +33,39 @@ class StacVersion:
         """
 
         cdn_base_url = f"https://cdn.staclint.com/{self.version}"
-        git_base_url = f"https://raw.githubusercontent.com/radiantearth/stac-spec/{self.version}"
+        git_base_url = (
+            f"https://raw.githubusercontent.com/radiantearth/stac-spec/{self.version}"
+        )
 
         self.filename = StacVersion.fix_stac_item(self.version, self.filename)
 
         # Collection spec can be validated by catalog spec.
         if requests.get(cdn_base_url).status_code == 200:
-            self.ITEM_URL = os.path.join(cdn_base_url, self.filename)
-            self.CATALOG_URL = os.path.join(cdn_base_url, self.filename)
-            self.COLLECTION_URL = os.path.join(cdn_base_url, self.filename)
+            self.ITEM_URL = self._build_paths([cdn_base_url, self.filename])
+            self.CATALOG_URL = self._build_paths([cdn_base_url, self.filename])
+            self.COLLECTION_URL = self._build_paths([cdn_base_url, self.filename])
         else:
             if self.version in old_versions:
-                self.CATALOG_URL = os.path.join(git_base_url, f"static-catalog/{self.input_type}/{self.filename}")
-                self.ITEM_URL = os.path.join(git_base_url, f"json-spec/{self.input_type}/{self.filename}")
+                self.CATALOG_URL = self._build_paths(
+                    [git_base_url, "static-catalog", self.input_type, self.filename]
+                )
+                self.ITEM_URL = self._build_paths(
+                    [git_base_url, "json-spec", self.input_type, self.filename]
+                )
 
             else:
 
-                self.CATALOG_URL = os.path.join(git_base_url, f"catalog-spec/{self.input_type}/{self.filename}")
-                self.COLLECTION_URL = os.path.join(git_base_url, f"collection-spec/{self.input_type}/{self.filename}")
-                self.ITEM_URL = os.path.join(git_base_url, f"item-spec/{self.input_type}/{self.filename}")
+                self.CATALOG_URL = self._build_paths(
+                    [git_base_url, f"catalog-spec", self.input_type, self.filename]
+                )
+
+                self.COLLECTION_URL = self._build_paths(
+                    [git_base_url, f"collection-spec", self.input_type, self.filename]
+                )
+
+                self.ITEM_URL = self._build_paths(
+                    [git_base_url, f"item-spec", self.input_type, self.filename]
+                )
 
     @staticmethod
     def fix_stac_item(version, filename):

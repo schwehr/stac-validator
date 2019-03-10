@@ -185,13 +185,16 @@ class StacValidate:
         try:
             if "title" in stac_schema and "item" in stac_schema["title"].lower():
                 logger.debug("Changing GeoJson definition to reference local file")
+                logger.debug(f"Item Path: file://{self.dirpath}/item_{self.stac_version.replace('.', '_')}.json#")
                 # rewrite relative reference to use local geojson file
-                stac_schema['id'] = f"item_{self.stac_version.replace('.', '_')}.json"
-                stac_schema["definitions"]["core"]["allOf"][0]["oneOf"][0][
-                    "$ref"
-                ] = f"file://{self.dirpath}/geojson.json#/definitions/feature"
+                stac_schema['$id'] = f"file://{self.dirpath}/item_{self.stac_version.replace('.', '_')}.json#"
+                # stac_schema["definitions"]["core"]["allOf"][0]["oneOf"][0][
+                #     "$ref"
+                # ] = f"file://{self.dirpath}/geojson.json#/definitions/feature"
+            #self.fetch_spec("geojson")
+            self.geojson_resolver = RefResolver(f"file://{self.dirpath}/", None)
             logging.info("Validating STAC")
-            validate(stac_content, stac_schema)
+            validate(stac_content, stac_schema, resolver=self.geojson_resolver)
             return True, None
         except RefResolutionError as error:
             # See https://github.com/Julian/jsonschema/issues/362
@@ -199,12 +202,17 @@ class StacValidate:
             # See https://github.com/Julian/jsonschema/issues/98
             # See https://github.com/Julian/jsonschema/issues/343
             try:
-                self.fetch_spec("geojson")
-                self.geojson_resolver = RefResolver(
-                    base_uri=f"file://{self.dirpath}/geojson.json", referrer="geojson.json"
-                )
-                validate(stac_content, stac_schema, resolver=self.geojson_resolver)
+                # self.fetch_spec("geojson")
+                # self.geojson_resolver = RefResolver(
+                #     base_uri=f"file://{self.dirpath}/geojson.json", referrer="geojson.json"
+                # )
+                validate(stac_content, stac_schema)
+                #validate(stac_content, stac_schema, resolver=self.geojson_resolver)
                 return True, None
+            except ValidationError as error:
+                e = error.message.replace("\'", "\"")
+                logger.warning(f"Found a validation error: {e}")
+                return False, f"{e}"
             except Exception as error:
                 logger.exception("A reference resolution error")
                 return False, f"{error.args}"
